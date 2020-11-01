@@ -10,6 +10,7 @@
 package goavro
 
 import (
+	"encoding/json"
 	"fmt"
 )
 
@@ -61,51 +62,7 @@ func makeRecordCodec(st map[string]*Codec, enclosingNamespace string, schemaMap 
 		}
 
 		if defaultValue, ok := fieldSchemaMap["default"]; ok {
-			typeNameShort := fieldCodec.typeName.short()
-			switch typeNameShort {
-			case "boolean":
-				v, ok := defaultValue.(bool)
-				if !ok {
-					return nil, fmt.Errorf("Record %q field %q: default value ought to encode using field schema: %s", c.typeName, fieldName, err)
-				}
-				defaultValue = bool(v)
-			case "bytes":
-				v, ok := defaultValue.(string)
-				if !ok {
-					return nil, fmt.Errorf("Record %q field %q: default value ought to encode using field schema: %s", c.typeName, fieldName, err)
-				}
-				defaultValue = []byte(v)
-			case "double":
-				v, ok := defaultValue.(float64)
-				if !ok {
-					return nil, fmt.Errorf("Record %q field %q: default value ought to encode using field schema: %s", c.typeName, fieldName, err)
-				}
-				defaultValue = float64(v)
-			case "float":
-				v, ok := defaultValue.(float64)
-				if !ok {
-					return nil, fmt.Errorf("Record %q field %q: default value ought to encode using field schema: %s", c.typeName, fieldName, err)
-				}
-				defaultValue = float32(v)
-			case "int":
-				v, ok := defaultValue.(float64)
-				if !ok {
-					return nil, fmt.Errorf("Record %q field %q: default value ought to encode using field schema: %s", c.typeName, fieldName, err)
-				}
-				defaultValue = int32(v)
-			case "long":
-				v, ok := defaultValue.(float64)
-				if !ok {
-					return nil, fmt.Errorf("Record %q field %q: default value ought to encode using field schema: %s", c.typeName, fieldName, err)
-				}
-				defaultValue = int64(v)
-			case "string":
-				v, ok := defaultValue.(string)
-				if !ok {
-					return nil, fmt.Errorf("Record %q field %q: default value ought to encode using field schema: %s", c.typeName, fieldName, err)
-				}
-				defaultValue = string(v)
-			case "union":
+			if fieldCodec.typeName.short() == "union" {
 				// When codec is union, then default value ought to encode using
 				// first schema in union.  NOTE: To support a null default
 				// value, the string literal "null" must be coerced to a `nil`
@@ -116,8 +73,16 @@ func makeRecordCodec(st map[string]*Codec, enclosingNamespace string, schemaMap 
 				// set to the type name of first member
 				// TODO: change to schemaCanonical below
 				defaultValue = Union(fieldCodec.schemaOriginal, defaultValue)
-			default:
-				debug("fieldName: %q; type: %q; defaultValue: %T(%#v)\n", fieldName, c.typeName, defaultValue, defaultValue)
+			} else {
+				defaultText, err := json.Marshal(defaultValue)
+				if err != nil {
+					return nil, fmt.Errorf("Record %q field %q: default value ought to encode using field schema: %s", c.typeName, fieldName, err)
+				}
+
+				defaultValue, _, err = fieldCodec.NativeFromTextual(defaultText)
+				if err != nil {
+					return nil, fmt.Errorf("Record %q field %q: default value ought to encode using field schema: %s", c.typeName, fieldName, err)
+				}
 			}
 
 			// attempt to encode default value using codec

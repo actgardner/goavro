@@ -81,6 +81,24 @@ func TestSchemaRecordFieldWithDefaults(t *testing.T) {
       "name": "hacker",
       "type": "boolean",
       "default": false
+    },
+    {
+      "name": "attrs",
+      "type": {
+        "type": "map",
+        "values": "int"
+      },
+      "default": {
+        "attr1": 27
+      } 
+    },
+    {
+      "name": "list",
+      "type": {
+        "type": "array",
+        "items": "int"
+      },
+      "default": [1, 2, 3]
     }
   ]
 }`)
@@ -618,7 +636,7 @@ func TestRecordFieldFixedDefaultValue(t *testing.T) {
 
 func TestRecordFieldDefaultValueTypes(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		codec, err := NewCodec(`{"type": "record", "name": "r1", "fields":[{"name": "someBoolean", "type": "boolean", "default": true},{"name": "someBytes", "type": "bytes", "default": "0"},{"name": "someDouble", "type": "double", "default": 0},{"name": "someFloat", "type": "float", "default": 0},{"name": "someInt", "type": "int", "default": 0},{"name": "someLong", "type": "long", "default": 0},{"name": "someString", "type": "string", "default": "0"}]}`)
+		codec, err := NewCodec(`{"type": "record", "name": "r1", "fields":[{"name": "someBoolean", "type": "boolean", "default": true},{"name": "someBytes", "type": "bytes", "default": "0"},{"name": "someDouble", "type": "double", "default": 0},{"name": "someFloat", "type": "float", "default": 0},{"name": "someInt", "type": "int", "default": 0},{"name": "someLong", "type": "long", "default": 0},{"name": "someString", "type": "string", "default": "0"}, {"name": "someMap", "type": {"type": "map", "values": "int"}, "default": {"a": 1}}, {"name": "someArray", "type": {"type": "array", "items": "float"}, "default": [1,2,3]}, {"name": "someEnum", "type": {"type": "enum", "name": "someEnum", "symbols": ["A", "B", "C"]}, "default": "B"}]}`)
 		ensureError(t, err)
 
 		r1, _, err := codec.NativeFromTextual([]byte("{}"))
@@ -659,6 +677,21 @@ func TestRecordFieldDefaultValueTypes(t *testing.T) {
 		someString := r1m["someString"]
 		if _, ok := someString.(string); !ok {
 			t.Errorf("GOT: %T; WANT: string", someString)
+		}
+
+		someMap := r1m["someMap"]
+		if _, ok := someMap.(map[string]interface{})["a"].(int32); !ok {
+			t.Errorf("GOT: %T; WANT: int", someMap.(map[string]interface{})["a"])
+		}
+
+		someArray := r1m["someArray"]
+		if _, ok := someArray.([]interface{})[0].(float32); !ok {
+			t.Errorf("GOT: %T; WANT: ", someArray.([]interface{})[0])
+		}
+
+		someEnum := r1m["someEnum"]
+		if _, ok := someEnum.(string); !ok {
+			t.Errorf("GOT: %T; WANT: string", someEnum)
 		}
 	})
 
